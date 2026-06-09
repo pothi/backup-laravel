@@ -3,7 +3,7 @@
 # requirements
 # ~/log, ~/backups, ~/path_to/example.com/public
 
-set ver 1.0
+set ver 2.0
 
 ### Variables - Please do not add trailing slash in the PATHs
 
@@ -64,12 +64,14 @@ set env_path
 set time_start
 set time_end
 
+set aws_profile default
+
 set -x PATH ~/bin ~/.local/bin /usr/local/sbin /usr/local/bin /usr/sbin /usr/bin /sbin /bin
 test -d /snap/bin; and set -a PATH /snap/bin
 
 # main function {{{
-function backup-db -d 'Create a DB dump and optionally store it offsite.'
-    argparse --name=backup-db 'h/help' 'b/bucket=' 'x/exclude_uploads' 'o/only_offsite' 'e/email=' 's/success' 'v/version' 'u/update' -- $argv
+function backup-laravel-db -d 'Create a DB dump and optionally store it offsite.'
+    argparse --name=backup-laravel-db 'h/help' 'b/bucket=' 'x/exclude_uploads' 'o/only_offsite' 'e/email=' 's/success' 'v/version' 'u/update' 'p/profile=' -- $argv
     or return
 
     if set -q _flag_help
@@ -101,6 +103,10 @@ function backup-db -d 'Create a DB dump and optionally store it offsite.'
 
     if set -q _flag_success
         set success_alert yes
+    end
+
+    if set -q _flag_profile
+        set aws_profile $_flag_profile
     end
 
     # actual script begins here
@@ -302,7 +308,7 @@ end
 function __backup_db_offsite -a bucket_name
     # send the backup offsite
     echo Sending the backup to offsite. It may take a while...
-    aws s3 cp $unique_backup s3://$bucket_name/$domain/$backup_type/$backup_by_date --only-show-errors
+    aws --profile $aws_profile s3 cp $unique_backup s3://$bucket_name/$domain/$backup_type/$backup_by_date --only-show-errors
     if test $status -eq 0
         set msg "Offsite backup is successful."
         printf "\n%s\n\n" "$msg"
@@ -356,7 +362,7 @@ function __backup_db_cleanup
 end
 # }}}
 
-backup-db $argv 2>&1 | tee -a ~/log/(status basename | awk -F. '{print $1}').log
+backup-laravel-db $argv 2>&1 | tee -a ~/log/(status basename | awk -F. '{print $1}').log
 
 # vim:fileencoding=utf-8:foldmethod=marker
 # vim: set ts=4 sts=4 sw=4 et
