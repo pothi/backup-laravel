@@ -1,17 +1,14 @@
 #!/usr/bin/env fish
 
-# requirements
-# ~/log, ~/backups, ~/path_to/example.com/public
+set ver 2.1
 
-set ver 2.0
+### Variables ###
 
-### Variables - Please do not add trailing slash in the PATHs
-
-# a passphrase for encryption, in order to being able to use almost any special characters use ""
+# for encryption
 set passphrase
 
 # the script assumes your sites are kept like ~/sites/example.com, ~/sites/example.net, ~/sites/example.org and so on.
-# if you have a different pattern, such as ~/app/example.com, please change the following to fit the server environment!
+# if you have a different pattern, such as ~/app/example.com, please change here.
 set sites_path {$HOME}/sites
 
 # possible values: public_html, public, dist, etc
@@ -29,31 +26,33 @@ set backup_type db
 # for debugging
 # set -l fish_trace non_empty_value
 
-# create necessary directories
-test -d ~/backups || mkdir -p ~/backups
-test -d ~/log || mkdir -p ~/log
-
 set backups_folder $HOME/backups/$backup_type
+set dir_nightly $backups_folder/nightly
+set dir_weekly $backups_folder/weekly
+set dir_monthly $backups_folder/monthly
+
+# create necessary directories
+test -d ~/backups      || mkdir ~/backups
+test -d ~/log          || mkdir ~/log
+test -d "$dir_nightly" || mkdir -p "$dir_nightly"
+test -d "$dir_weekly"  || mkdir -p "$dir_weekly"
+test -d "$dir_monthly" || mkdir -p "$dir_monthly"
 
 set file_ext sql.gz
 
-# Variables defined later in the script
 set script_name (status basename)
 set fulldate (date +%F)
 set timestamp (date +%F_%H-%M-%S)
+
+set aws_profile default
+
+# Variables to be used later in the script
 set bucket_name
 set domain
-set sizeH
 
 set unique_backup
 set backup_symlink
 set backup_by_date
-
-# echo Domain: $domain
-
-set dir_nightly $backups_folder/nightly
-set dir_weekly $backups_folder/weekly
-set dir_monthly $backups_folder/monthly
 
 set alertEmails
 set site_root
@@ -63,8 +62,7 @@ set env_path
 
 set time_start
 set time_end
-
-set aws_profile default
+# end of empty variables
 
 set -x PATH ~/bin ~/.local/bin /usr/local/sbin /usr/local/bin /usr/sbin /usr/bin /sbin /bin
 test -d /snap/bin; and set -a PATH /snap/bin
@@ -182,11 +180,7 @@ end
 
 # boottstrap function {{{
 function __backup_db_bootstrap
-    test -d "$dir_nightly" || mkdir -p "$dir_nightly"
-    test -d "$dir_weekly" || mkdir -p "$dir_weekly"
-    test -d "$dir_monthly" || mkdir -p "$dir_monthly"
-
-    # Define paths
+    # Define file names
     set unique_backup $dir_nightly/$domain-$timestamp.$file_ext
     set backup_symlink $dir_nightly/$domain-latest.$file_ext
     set backup_by_date $domain-$fulldate.$file_ext
@@ -214,7 +208,6 @@ function __backup_db_bootstrap
 
     ### Actual Script Starts here...
     echo # Beginning of output
-    # echo "$script_name started on... $(date +%c)"
     echo "Backup started on $(date +%c)"
     echo
     set time_start (date +%s)
@@ -306,7 +299,6 @@ end
 
 # offsite backup function {{{
 function __backup_db_offsite -a bucket_name
-    # send the backup offsite
     echo Sending the backup to offsite. It may take a while...
     aws --profile $aws_profile s3 cp $unique_backup s3://$bucket_name/$domain/$backup_type/$backup_by_date --only-show-errors
     if test $status -eq 0
@@ -346,7 +338,7 @@ function __backup_db_cleanup
     find -L $dir_weekly/  -type f -iname "$domain-*" -mtime +$(math $WeeklyBackupsToKeep x 7)    -exec rm {} \;
     find -L $dir_monthly/ -type f -iname "$domain-*" -mtime +$(math $MonthlyBackupsToKeep x 31)  -exec rm {} \;
 
-    set sizeH $(du -h $unique_backup | awk '{print $1}')
+    set -l sizeH $(du -h $unique_backup | awk '{print $1}')
     # Display some info about the backup.
     echo Backup Folder: $dir_nightly
     echo Latest backup: $unique_backup
@@ -364,5 +356,4 @@ end
 
 backup-laravel-db $argv 2>&1 | tee -a ~/log/(status basename | awk -F. '{print $1}').log
 
-# vim:fileencoding=utf-8:foldmethod=marker
-# vim: set ts=4 sts=4 sw=4 et
+# vim: fileencoding=utf-8 : foldmethod=marker : ts=4 sts=4 sw=4 et
