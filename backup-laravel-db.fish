@@ -1,6 +1,6 @@
 #!/usr/bin/env fish
 
-set ver 2.1
+set ver 2.2
 
 ### Variables ###
 
@@ -73,12 +73,12 @@ function backup-laravel-db -d 'Create a DB dump and optionally store it offsite.
     or return
 
     if set -q _flag_help
-        __backup_db_print_help
+        __print_help
         return 0
     end
 
     if set -q _flag_version
-        __backup_print_version
+        echo $ver
         return 0
     end
 
@@ -89,7 +89,7 @@ function backup-laravel-db -d 'Create a DB dump and optionally store it offsite.
 
     if not set -q argv[1]
         # if no arguments given (min requirement is example.com)
-        __backup_db_print_help
+        __print_help
         return 1
     end
 
@@ -123,11 +123,12 @@ end # end of backup-db as a function
 # }}}
 
 # print help {{{
-function __backup_db_print_help
+function __print_help
     printf '%s\n\n' "Take a database backup"
 
     printf 'Usage: %s [-b <bucket_name>] [-e <email-address>] [-s] [-p <WP path>] [-v] [-h] example.com\n\n' "$script_name"
 
+    printf '\t%s\t%s\n' "-p, --profile" "AWS profile (default: default)"
     printf '\t%s\t%s\n' "-b, --bucket" "Name of the bucket for offsite backup (default: none)"
     printf '\t%s\t%s\n' "-e, --email" "Email/s to send success/failure alerts"
     printf '\t%s\t%s\n' "-s, --success" "Alert on successful (offsite) backup (default: alert only on failures)"
@@ -139,10 +140,6 @@ function __backup_db_print_help
     printf "\nFor more info, changelog and documentation... https://github.com/pothi/backup-laravel\n"
 end
 # }}}
-
-function __backup_print_version
-    echo $ver
-end
 
 # self-update {{{
 function __self_update
